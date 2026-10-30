@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>半导体 CIM Mini-EAP & SECS/GEM 实时监控台</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #0b1120;
+            color: #e2e8f0;
+            padding: 18px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 14px 22px;
+            border-radius: 10px;
+            border-left: 5px solid #38bdf8;
+            margin-bottom: 16px;
+        }
+        .header h1 { font-size: 20px; color: #f8fafc; }
+        .header .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            background: #065f46;
+            color: #34d399;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 16px;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #334155;
+        }
+        .card h2 {
+            font-size: 15px;
+            color: #38bdf8;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #334155;
+        }
+        .kv-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 7px 0;
+            border-bottom: 1px dashed #334155;
+            font-size: 13.5px;
+        }
+        .kv-label { color: #94a3b8; }
+        .kv-val { font-weight: 600; color: #f1f5f9; }
+        .state-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #0284c7;
+            color: #fff;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            text-align: left;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background: #0284c7; color: white; }
+        .btn-success { background: #059669; color: white; }
+        .btn-warn { background: #d97706; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-sec { background: #475569; color: white; }
+        .wafer-bar {
+            width: 100%;
+            height: 18px;
+            background: #0f172a;
+            border-radius: 9px;
+            overflow: hidden;
+            margin-top: 8px;
+            border: 1px solid #334155;
+        }
+        .wafer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0ea5e9, #10b981);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .log-box {
+            height: 540px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+        .log-item {
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: #1e293b;
+            border-left: 4px solid #38bdf8;
+        }
+        .log-item.mes { border-left-color: #a855f7; }
+        .log-item.alarm { border-left-color: #ef4444; background: #2c1519; }
+        .log-meta {
+            display: flex;
+            gap: 10px;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .log-time { color: #64748b; }
+        .log-dir { font-weight: bold; color: #38bdf8; }
+        .log-sxfy {
+            background: #334155;
+            color: #facc15;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .log-title { color: #f8fafc; font-weight: 600; }
+        .log-sml { color: #94a3b8; font-size: 12px; margin-top: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>半导体 CIM - Mini-EAP 设备自动化控制系统 (SECS/GEM 真实协议栈)</h1>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+            底层协议: HSMS (TCP/IP 127.0.0.1:5000) | 协议栈: secs4j | 关联系统: MES / RMS / FDC
+        </div>
+    </div>
+    <div id="connBadge" class="badge">HSMS 连接中...</div>
+</div>
+
+<div class="grid">
+    <div>
+        <div class="card">
+            <h2>机台实时状态 (EQP Digital Twin)</h2>
+            <div class="kv-row"><span class="kv-label">设备编号 (EQP ID)</span><span class="kv-val" id="eqpId">-</span></div>
+            <div class="kv-row"><span class="kv-label">控制模式 (Control State)</span><span class="kv-val" id="controlState">-</span></div>
+            <div class="kv-row"><span class="kv-label">加工状态 (Process State)</span><span class="kv-val"><span class="state-tag" id="processState">-</span></span></div>
+            <div class="kv-row"><span class="kv-label">当前晶圆盒 (Carrier/FOUP)</span><span class="kv-val" id="carrierId">-</span></div>
+            <div class="kv-row"><span class="kv-label">生产批次 (Lot ID)</span><span class="kv-val" id="lotId">-</span></div>
+            <div class="kv-row"><span class="kv-label">工艺配方 (Recipe)</span><span class="kv-val" id="recipe">-</span></div>
+            <div class="kv-row"><span class="kv-label">腔体温度 (FDC Temp)</span><span class="kv-val" id="temp">-</span></div>
+            <div class="kv-row"><span class="kv-label">腔体气压 / 射频功率</span><span class="kv-val" id="pressRf">-</span></div>
+
+            <div style="margin-top: 12px; font-size: 13px; display: flex; justify-content: space-between;">
+                <span>晶圆刻蚀进度 (Wafer Progress)</span>
+                <span id="waferText">0 / 0 片</span>
+            </div>
+            <div class="wafer-bar"><div class="wafer-fill" id="waferFill"></div></div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+            <h2>晶圆厂操作模拟台 (点击体验面试核心流程)</h2>
+            <div class="btn-group">
+                <button class="btn-success" onclick="loadCarrier('FOUP-8801')">
+                    ▶ 1. 模拟上料 FOUP-8801 (7nm 刻蚀批次全自动过站)
+                </button>
+                <button class="btn-primary" onclick="loadCarrier('FOUP-8802')">
+                    ▶ 2. 模拟上料 FOUP-8802 (5nm 氧化物批次过站)
+                </button>
+                <button class="btn-warn" onclick="sendHeartbeat()">
+                    ⚡ 3. 发送 S1F1/S1F2 心跳检测 (Are You There)
+                </button>
+                <button class="btn-danger" onclick="triggerAlarm()">
+                    🚨 4. 模拟腔体超温 (525℃) -> 触发 FDC 拦截 + S2F41 停机
+                </button>
+                <button class="btn-sec" onclick="clearLogs()">
+                    🗑 清空右侧报文日志
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SECS-II / HSMS 实时报文与 MES 交互追踪 (倒序最新在最上)</h2>
+        <div class="log-box" id="logBox"></div>
+    </div>
+</div>
+
+<script>
+    async function refreshStatus() {
+        try {
+            const res = await fetch('/api/eap/status');
+            const data = await res.json();
+
+            const badge = document.getElementById('connBadge');
+            if (data.hsmsConnected) {
+                badge.textContent = 'HSMS LINK SELECTED (在线)';
+                badge.style.background = '#065f46';
+                badge.style.color = '#34d399';
+            } else {
+                badge.textContent = 'HSMS OFFLINE (断开)';
+                badge.style.background = '#7f1d1d';
+                badge.style.color = '#fca5a5';
+            }
+
+            document.getElementById('eqpId').textContent = data.eqpId;
+            document.getElementById('controlState').textContent = data.controlState;
+            document.getElementById('processState').textContent = data.processState;
+            document.getElementById('carrierId').textContent = data.currentCarrierId;
+            document.getElementById('lotId').textContent = data.currentLotId;
+            document.getElementById('recipe').textContent = data.currentRecipe;
+            document.getElementById('temp').textContent = data.chamberTemp.toFixed(1) + ' ℃';
+            document.getElementById('pressRf').textContent = data.chamberPressure.toFixed(1) + ' mTorr / ' + data.rfPower.toFixed(0) + ' W';
+
+            document.getElementById('waferText').textContent = data.processedWafer + ' / ' + data.waferCount + ' 片';
+            const pct = data.waferCount > 0 ? Math.round((data.processedWafer / data.waferCount) * 100) : 0;
+            document.getElementById('waferFill').style.width = pct + '%';
+
+            const logBox = document.getElementById('logBox');
+            logBox.innerHTML = data.secsLogs.map(item => {
+                let cls = 'log-item';
+                if (item.direction.includes('MES')) cls += ' mes';
+                if (item.sxfy === 'ALARM' || item.sxfy === 'HoldLot') cls += ' alarm';
+                return `
+                    <div class="${cls}">
+                        <div class="log-meta">
+                            <span class="log-time">[${item.time}]</span>
+                            <span class="log-dir">${item.direction}</span>
+                            <span class="log-sxfy">${item.sxfy}</span>
+                            <span class="log-title">${item.title}</span>
+                        </div>
+                        <div class="log-sml">${item.smlDetail}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadCarrier(id) {
+        await fetch('/api/eap/load-carrier?carrierId=' + id, { method: 'POST' });
+        refreshStatus();
+    }
+    async function sendHeartbeat() {
+        await fetch('/api/eap/heartbeat', { method: 'POST' });
+        refreshStatus();
+    }
+    async function triggerAlarm() {
+        await fetch('/api/eap/over-temp-alarm', { method: 'POST' });
+        refreshStatus();
+    }
+    async function clearLogs() {
+        await fetch('/api/eap/clear-logs', { method: 'POST' });
+        refreshStatus();
+    }
+
+    setInterval(refreshStatus, 600);
+    refreshStatus();
+</script>
+</body>
+</html>
